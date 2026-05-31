@@ -38,8 +38,8 @@ public class AIController : MonoBehaviour
     bool m_IsPatrol;
     bool m_CaughtPlayer;
 
-    // Performance Optimization Variable
     private Transform playerTransform;
+    private Animator animator;
 
     void Start()
     {
@@ -49,11 +49,11 @@ public class AIController : MonoBehaviour
         m_PlayerInRange = false;
         m_WaitTime = startWaitTime;
         m_TimeToRotate = timeToRotate;
-
         m_CurrentWaypointIndex = 0;
+        
         navMeshAgent = GetComponent<NavMeshAgent>();
+        animator = GetComponent<Animator>(); 
 
-        // Cache the player transform safely at start so we don't spam lookups
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
         {
@@ -78,13 +78,21 @@ public class AIController : MonoBehaviour
         {
             Patroling();
         }
+
+        if (navMeshAgent != null && animator != null)
+        {
+            float currentSpeed = navMeshAgent.velocity.magnitude;
+            animator.SetFloat("speed", currentSpeed);
+        }
     }
 
     private void Chasing()
     {
-        if (playerTransform == null)
+        if (playerTransform == null || !playerTransform.CompareTag("Player"))
         {
             m_IsPatrol = true;
+            Move(speedWalk);
+            SetWaypointDestination();
             return;
         }
 
@@ -94,16 +102,12 @@ public class AIController : MonoBehaviour
         if (!m_CaughtPlayer)
         {
             Move(speedRun);
-
-            // Lock onto the player's live position during a chase
             m_PlayerPosition = playerTransform.position;
             navMeshAgent.SetDestination(m_PlayerPosition);
         }
 
-        // Check if the AI reached the last recorded position of the player
         if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
         {
-            // If we are close to the destination, we haven't caught them, they are far away, and we lost line of sight
             if (m_WaitTime <= 0 && !m_CaughtPlayer && Vector3.Distance(transform.position, playerTransform.position) >= 6f && !m_PlayerInRange)
             {
                 m_IsPatrol = true;
@@ -115,7 +119,6 @@ public class AIController : MonoBehaviour
             }
             else
             {
-                // If the player is still relatively near but breaking visual tracking loops
                 if (Vector3.Distance(transform.position, playerTransform.position) >= 2.5f)
                 {
                     Stop();
@@ -145,7 +148,6 @@ public class AIController : MonoBehaviour
             m_PlayerNear = false;
             playerLastPosition = Vector3.zero;
 
-            // Wait until the agent arrives physically at the current patrol node
             if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
             {
                 if (m_WaitTime <= 0)
@@ -157,7 +159,7 @@ public class AIController : MonoBehaviour
                 else
                 {
                     Stop();
-                    m_WaitTime -= Time.deltaTime; // Dwell/Wait timer countdown at waypoints
+                    m_WaitTime -= Time.deltaTime;
                 }
             }
         }
@@ -216,13 +218,18 @@ public class AIController : MonoBehaviour
         for (int i = 0; i < playerInRange.Length; i++)
         {
             Transform player = playerInRange[i].transform;
+
+            if (!player.CompareTag("Player"))
+            {
+                continue; 
+            }
+
             Vector3 dirToPlayer = (player.position - transform.position).normalized;
 
             if (Vector3.Angle(transform.forward, dirToPlayer) < viewAngle / 2)
             {
                 float dstToPlayer = Vector3.Distance(transform.position, player.position);
 
-                // Raycast to check if an obstacle is blocking the clear vision path
                 if (!Physics.Raycast(transform.position, dirToPlayer, dstToPlayer, obstacleMask))
                 {
                     spottedThisFrame = true;
@@ -239,7 +246,6 @@ public class AIController : MonoBehaviour
         }
     }
 
-    // Helper to send the agent to its current patrol index safely without continuous loop stuttering
     void SetWaypointDestination()
     {
         if (waypoints != null && waypoints.Length > 0 && waypoints[m_CurrentWaypointIndex] != null)

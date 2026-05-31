@@ -67,6 +67,13 @@ public class PlayerMovementNew : MonoBehaviour
             walkSpeed = 6f;
             runSpeed = 12f;
         }
+        CharacterController controller = GetComponent<CharacterController>();
+
+        // EÐER BÝLEÞEN KAPALIYSA (Yani dolaptaysak), hareket kodunun geri kalanýný çalýþtýrma!
+        if (controller != null && !controller.enabled)
+        {
+            return;
+        }
 
         characterController.Move(moveDirection * Time.deltaTime);
 
