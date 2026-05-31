@@ -50,9 +50,9 @@ public class AIController : MonoBehaviour
         m_WaitTime = startWaitTime;
         m_TimeToRotate = timeToRotate;
         m_CurrentWaypointIndex = 0;
-        
+
         navMeshAgent = GetComponent<NavMeshAgent>();
-        animator = GetComponent<Animator>(); 
+        animator = GetComponent<Animator>();
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
@@ -60,8 +60,11 @@ public class AIController : MonoBehaviour
             playerTransform = playerObj.transform;
         }
 
-        navMeshAgent.isStopped = false;
-        navMeshAgent.speed = speedWalk;
+        if (navMeshAgent != null)
+        {
+            navMeshAgent.isStopped = false;
+            navMeshAgent.speed = speedWalk;
+        }
 
         SetWaypointDestination();
     }
@@ -119,7 +122,8 @@ public class AIController : MonoBehaviour
             }
             else
             {
-                if (Vector3.Distance(transform.position, playerTransform.position) >= 2.5f)
+                // Cleaned up the distance check condition to prevent the startup lock bug
+                if (m_PlayerInRange && Vector3.Distance(transform.position, playerTransform.position) >= 2.5f)
                 {
                     Stop();
                     m_WaitTime -= Time.deltaTime;
@@ -167,12 +171,14 @@ public class AIController : MonoBehaviour
 
     void Move(float speed)
     {
+        if (navMeshAgent == null) return;
         navMeshAgent.isStopped = false;
         navMeshAgent.speed = speed;
     }
 
     void Stop()
     {
+        if (navMeshAgent == null) return;
         navMeshAgent.isStopped = true;
         navMeshAgent.speed = 0;
     }
@@ -221,7 +227,7 @@ public class AIController : MonoBehaviour
 
             if (!player.CompareTag("Player"))
             {
-                continue; 
+                continue;
             }
 
             Vector3 dirToPlayer = (player.position - transform.position).normalized;
@@ -248,7 +254,7 @@ public class AIController : MonoBehaviour
 
     void SetWaypointDestination()
     {
-        if (waypoints != null && waypoints.Length > 0 && waypoints[m_CurrentWaypointIndex] != null)
+        if (waypoints != null && waypoints.Length > 0 && waypoints[m_CurrentWaypointIndex] != null && navMeshAgent != null)
         {
             navMeshAgent.SetDestination(waypoints[m_CurrentWaypointIndex].position);
         }
